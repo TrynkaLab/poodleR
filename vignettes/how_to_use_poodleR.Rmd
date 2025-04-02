@@ -14,7 +14,7 @@ knitr::opts_chunk$set(
 )
 ```
 ## Scope of the package
-poodleR (POOled Donor deconvolution by LEast square Regression) is a package that facilitates the estimation of individual donor proportions in pooled experiments using Whole Genome Sequencing (WGS) or Whole Exome Sequencing (WES), helps to design of these kind of experiments. The deconvolution function itself needs two inputs: an allele frequency file created from the mapped sequencing reads from WGS/WES samples from pooled donors, and a genotype file that contains allele dosage information on each of the donors. These two files need to consistently refer to the same allele at each variant position.  
+poodleR (POOled Donor deconvolution by LEast square Regression) is a package that facilitates the estimation of individual donor proportions in pooled experiments using Whole Genome Sequencing (WGS) or Whole Exome Sequencing (WES) and donor genotype information. The deconvolution function itself needs two inputs: an allele frequency file created from the mapped sequencing reads from WGS/WES samples from pooled donors, and a genotype file that contains allele dosage information on each of the donors. These two files need to consistently refer to the same allele at each SNP position.  
 
 ```{r setup}
 library(poodleR)
@@ -44,9 +44,18 @@ head(bam_readcount)
 Once you have the above files, first we need to load and process the VCF and the bam-readcount file to their common SNPs. The example VCF file has been preloaded but you can use vcfR to read your own. Same with the bam-readcount file.
 ```{r read_vcf, eval=FALSE}
 library(vcfR)
-vcf = vcfR::read.vcfR(vcf_path)
+vcf_path <- system.file("extdata",  "vcf_example.vcf.gz", package = "poodleR")
+bam_readcount_path <- system.file("extdata",  "bam-readcount_example.tsv.gz", package = "poodleR")
 
+if (file.exists(vcf_path) && file.exists(bam_readcount_path)) {
+vcf = vcfR::read.vcfR(vcf_path)
 bam_readcount= data.table::fread( cmd = paste("cat", bam_readcount_path,"| awk -F '\t' '{print $1 , $2 , $3 , $4, $5, $6, $7, $8, $9, $10}'"))
+} else {
+  stop("Example data files not found. Ensure they exist in inst/extdata.")
+}
+
+
+
 
 ```
 The deconvolution step needs the estimated minor allele frequency (MAF) from the pool, which we'll calculate from the bam-readcount file. We'll also need the VCF file. Inside the `estimate_b_from_bam_readcount()` function both objects are reduced to their common SNPs. Also, for simplicity, only SNPs where the ALT allele is A, C, G or T are considered. If you have a big enough VCF and a WGS file sequenced at enough depth this shouldn't reduce the usable SNPs too much. 
