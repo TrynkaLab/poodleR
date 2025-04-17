@@ -5,7 +5,7 @@
 #'
 #' @param vcf A VCF object of class `vcfR` containing genotype data.
 #'
-#' @return A data.table with SNP identifiers as row names and genotype dosages (0, 0.5, or 1) for each donor/sample.
+#' @return A data.table with SNP identifiers in column 'rn' and genotype dosages (0, 0.5, or 1) for each donor/sample.
 #'
 #' @details
 #' - The function extracts genotype (GT) data from the VCF object.
@@ -22,8 +22,8 @@
 #' library(data.table)
 #' library(dplyr)
 #' library(stringr)
-#' vcf <- read.vcfR("example.vcf")
-#' dosage_data <- create_gt_dosages(vcf)
+#' vcf = read.vcfR("example.vcf")
+#' dosage_data = create_gt_dosages(vcf)
 #' }
 #'
 #' @import vcfR data.table dplyr stringr
@@ -32,7 +32,7 @@
 create_gt_dosages = function(vcf){
 
   ## Extracting GT
-  gt <- as.data.table(vcfR::extract.gt(vcf))
+  gt = as.data.table(vcfR::extract.gt(vcf))
   # first make new names from chromosome, position, ref and alt (so there are no duplicates)
   names = paste0(vcf@fix[,"CHROM"],"_",vcf@fix[,"POS"],"_",vcf@fix[,"REF"])
   # There are rows for same SNP but different minor alleles: those will be removed with the previous line (does not include "ALT")
@@ -59,26 +59,16 @@ create_gt_dosages = function(vcf){
   ## converting GT to minor allele score
 
   gt2 =  gt %>%
-    dplyr::mutate_all(funs(str_replace_all(., "0\\|0", "0")))
+    dplyr::mutate(across(everything(), ~ . %>%
+                           str_replace_all("0\\|0", "0") %>%
+                           str_replace_all("0\\/0", "0") %>%
+                           str_replace_all("0\\|1", "0.5") %>%
+                           str_replace_all("1\\|0", "0.5") %>%
+                           str_replace_all("0\\/1", "0.5") %>%
+                           str_replace_all("1\\/0", "0.5") %>%
+                           str_replace_all("1\\|1", "1") %>%
+                           str_replace_all("1\\/1", "1")))
 
-  gt2 =  gt2 %>%
-    dplyr::mutate_all(funs(str_replace_all(., "0\\/0", "0")))
-
-  gt2 = gt2 %>%
-    dplyr::mutate_all(funs(str_replace_all(., "0\\|1", "0.5")))
-
-  gt2 = gt2 %>%
-    dplyr::mutate_all(funs(str_replace_all(., "1\\|0", "0.5")))
-
-  gt2 =  gt2 %>%
-    dplyr::mutate_all(funs(str_replace_all(., "0\\/1", "0.5")))
-  gt2 =  gt2 %>%
-    dplyr::mutate_all(funs(str_replace_all(., "1\\/0", "0.5")))
-
-  gt2 = gt2 %>%
-    dplyr::mutate_all(funs(str_replace_all(., "1\\|1", "1")))
-  gt2 = gt2 %>%
-    dplyr::mutate_all(funs(str_replace_all(., "1\\/1", "1")))
 
   # change donor columns to numeric
   cols = setdiff(colnames(gt2),"rn")
@@ -100,14 +90,29 @@ create_gt_dosages = function(vcf){
 #'
 #' Transform the output of bam-readcount to data.table with minor allele frequency (MAF) estimate
 #' Only works with bam-readcount output preprocessed to contain first 10 columns as detailed in vignette
-#' @param bam_readcount Output of bam-readcount, after reading in first 10 columns
+#' @param bam_readcount Output of bam-readcount, after reading in first 10 columns, filtering to matching positions
+#' of the VCF (and after passing other user-defined filters such as minimum number of TOTAL_READS, if one so wishes).
+#' Colnames are:
+#' "CHROM": Chromosome.
+#' "POS": Genomic position.
+#' "REF": Reference allele.
+#' "TOTAL_READS": Total number of reads mapping to the variant.
+#' "DEL": Counts matching a deletion ALT allele.
+#' "A":  Counts matching "A" ALT allele.
+#' "C": Counts matching "C" ALT allele.
+#' "G": Counts matching "G" ALT allele.
+#' "T": Counts matching "T" ALT allele.
+#' "N": Counts matching "N" ALT allele (any ambiguous/unknown single variant allele).
+#' "CHROM_POS_REF": union of CHROM, POS, REF columns, separated by "_", for filtering.
+#' "ALT": ALT allele considered for this position.
+#'
 #' @param vcf The VCF genotype file, to get the minor allele and subset to common SNPs. Only takes into account
 #' so far minor alleles which are A,C,T or G (TODO: consider changing this)
 #'
-#' @return A data.table containing per SNP position: the total counts,
+#' @return
+#' - A data.table containing per SNP position: the total counts,
 #' counts for the A,C,T and G alleles, the minor allele frequency estimate (b_estimate), the ALT allele,
-#' and the SNP name in chromosome_position_REF_ALT (CHROM_POS_REF_ALT) format.
-#' And a data frame with the GT dosages.
+#' and the SNP name in chromosome_position_REF_ALT (CHROM_POS_REF) format.
 #' @export
 estimate_b_from_bam_readcount = function(bam_readcount,vcf){
 
@@ -135,7 +140,7 @@ estimate_b_from_bam_readcount = function(bam_readcount,vcf){
 
 
   # add row names
-  count_dt$CHROM_POS_REF_ALT = bam_readcount$CHROM_POS_REF_ALT
+  count_dt$CHROM_POS_REF = bam_readcount$CHROM_POS_REF
 
   return(count_dt)
 
@@ -169,9 +174,9 @@ estimate_b_from_bam_readcount = function(bam_readcount,vcf){
 #'
 #' @examples
 #' \dontrun{
-#' bam_path <- "path/to/bam_readcount.gz"
-#' vcf_path <- "path/to/variants.vcf"
-#' result <- calculate_nonRef_vector_and_genotype_df(bam_path, vcf_path, min_read_overlap = 10)
+#' bam_path = "path/to/bam_readcount.gz"
+#' vcf_path = "path/to/variants.vcf"
+#' result = calculate_nonRef_vector_and_genotype_df(bam_path, vcf_path, min_read_overlap = 10)
 #' }
 #'
 #' @import data.table vcfR
@@ -181,9 +186,32 @@ calculate_nonRef_vector_and_genotype_df = function(bam_readcount_path,vcf_path,m
                                                    genotype_minor_allele_dos_path=NULL){
 
   # Reading in only 10 columns - consider selecting all if I look into non-ACGT single bp minor alleles
-  bam_readcount= data.table::fread( cmd = paste("zcat", bam_readcount_path,"| awk -F '\t' '{print $1 , $2 , $3 , $4, $5, $6, $7, $8, $9, $10}'"))
+  # check operative system for selecting correct read function
+  sys_name = Sys.info()[["sysname"]]
+
+  if (sys_name == "Linux") {
+    bam_readcount = data.table::fread(
+      cmd = paste("zcat", bam_readcount_path, "| awk -F '\t' '{print $1 , $2 , $3 , $4, $5, $6, $7, $8, $9, $10}'")
+    )
+
+  } else if (sys_name == "Darwin") {
+    bam_readcount = data.table::fread(
+      cmd = paste("gzcat", bam_readcount_path, "| awk -F '\t' '{print $1 , $2 , $3 , $4, $5, $6, $7, $8, $9, $10}'")
+    )
+
+  } else if (sys_name == "Windows") {
+    R.utils::gunzip(bam_readcount_path, remove = FALSE)
+    decompressed_path = sub("\\.gz$", "", bam_readcount_path)
+
+    bam_readcount = data.table::fread(decompressed_path, select = 1:10)
+
+  } else {
+    stop(paste("Unsupported OS:", sys_name))
+  }
 
   colnames(bam_readcount) = c("CHROM","POS","REF","TOTAL_READS","DEL","A","C","G","T","N")
+  bam_readcount[["REF"]] = toupper(bam_readcount[["REF"]])
+
   # adding ALT information from vcf
   vcf = vcfR::read.vcfR(vcf_path)
   vcf_reduced = as.data.table(vcf@fix[,1:5])
@@ -194,8 +222,17 @@ calculate_nonRef_vector_and_genotype_df = function(bam_readcount_path,vcf_path,m
 
   # Lower case in REF means that base was seen on the reverse strand.
   # removing those positions with fewer than min_read_overlap reads
-  message("Subsetting to SNPs coevred by more than ",min_read_overlap," reads.")
+  message("Initial bam-readcount table has length:")
+  nrow(bam_readcount)
+  message("Summary of total number of reads per SNP")
+  summary(bam_readcount[["TOTAL_READS"]])
+  message("How many SNPs are covered by more than one read?")
+  table(bam_readcount[["TOTAL_READS"]]>1)
+
+  message("Subsetting to SNPs covered by more than ",min_read_overlap," reads.")
   bam_readcount = bam_readcount[TOTAL_READS >= min_read_overlap]
+  message("There are ",  nrow(bam_readcount), " variants left after filter." )
+
   bam_readcount$CHROM_POS_REF = paste(bam_readcount$CHROM,bam_readcount$POS,toupper(bam_readcount[["REF"]]),sep = "_")
   message("...Removing duplicates and subsetting data tables to common variants...")
   # remove duplicates
@@ -223,22 +260,13 @@ calculate_nonRef_vector_and_genotype_df = function(bam_readcount_path,vcf_path,m
     stop("Bam-readcount output and VCF don't produce identical subsets.")
   )
 
+  message("There are ",  nrow(bam_readcount), " variants left after subsetting to shared variants." )
+
   # checking if bam-readcount has already handled the strandedness of SNPs
   if(sum(toupper(bam_readcount[["REF"]])==bam_readcount$ALT)!=0){
     stop("Some REF alleles from bam-readcounts are VCF ALTs. Investigate...")
 
   }
-
-  bam_readcount[["REF"]] = toupper(bam_readcount[["REF"]])
-
-  message("Initial bam-readcount table has length:")
-  nrow(bam_readcount)
-  message("Summary of total number of reads per SNP")
-  summary(bam_readcount[["TOTAL_READS"]])
-  message("How many SNPs are covered by more than one read?")
-  table(bam_readcount[["TOTAL_READS"]]>1)
-  #### should look like #########
-  ############
 
   message("...Calculating minor allele dosages...")
 
@@ -264,7 +292,7 @@ calculate_nonRef_vector_and_genotype_df = function(bam_readcount_path,vcf_path,m
   message("The proportion of rows with b_estimate from the input vcf was ",
           sum(table(count_dt$b_estimate)) / original_vcf_rows, " \n")
 
-  if(ncol(count_dt)!=7) stop("Error: The output file does not have the expected number of columns.\n")
+  if(ncol(count_dt)!=8) stop("Error: The output file does not have the expected number of columns.\n")
   if(sum(is.na(count_dt$b_estimate)) == length(count_dt$b_estimate)) stop("Error: All the minor allele frequency estimates are NA.\n")
 
 
@@ -277,7 +305,7 @@ calculate_nonRef_vector_and_genotype_df = function(bam_readcount_path,vcf_path,m
   if((1-sum(count_dt$total_reads == rowSums(count_dt[,c("A","C","T","G")]))/nrow(count_dt)) > 0.01) stop("The proportion of SNPs where total reads != sum of ACTG counts is over 1%. There might be an error in poodle::estimate_b_from_bam_readcount(), or you may have a big fraction of non-ACTG allele counts. Investigate.\n")
 
 
-  if(b_estimate_path!=NULL){
+  if(!is.null(b_estimate_path)){
 
   message("Saving minor allele frequency estimate data...\n")
   fwrite(count_dt, file = b_estimate_path)
@@ -288,13 +316,13 @@ calculate_nonRef_vector_and_genotype_df = function(bam_readcount_path,vcf_path,m
   if(!identical(ma_dosages$rn,bam_readcount$CHROM_POS_REF)) stop("Error: Dosage file and bam-readcount file are not identical at the end of script.\n")
 
 
-  if(variants_retained_path!=NULL){
+  if(!is.null(variants_retained_path)){
     message("Saving stats for original number of variants and variants used...\n")
 
     write.table(data.frame(original_length = original_vcf_rows, final_length = nrow(ma_dosages)),
                 file = variants_retained_path,quote = F, row.names = F, col.names = T)
   }
-  if(genotype_minor_allele_dos_path!=NULL){
+  if(!is.null(genotype_minor_allele_dos_path)){
     message("Saving minor allele dosage data...\n")
 
   fwrite(ma_dosages,genotype_minor_allele_dos_path)
