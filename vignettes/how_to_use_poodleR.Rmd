@@ -14,11 +14,13 @@ knitr::opts_chunk$set(
 )
 ```
 ## Scope of the package
-poodleR (POOled Donor deconvolution by LEast square Regression) is a package that facilitates the estimation of individual donor proportions in pooled experiments using Whole Genome Sequencing (WGS) or Whole Exome Sequencing (WES) and donor genotype information. The deconvolution function itself needs two inputs: an allele frequency file created from the mapped sequencing reads from WGS/WES samples from pooled donors, and a genotype file that contains allele dosage information on each of the donors. These two files need to consistently refer to the same allele at each SNP position.  
+poodleR (POOled Donor deconvolution by LEast square Regression) is a package that facilitates the estimation of individual donor proportions in pooled experiments using Whole Genome Sequencing (WGS) or Whole Exome Sequencing (WES) and donor genotype information. The deconvolution function itself needs two inputs: an allele frequency file created from the mapped sequencing reads from WGS/WES samples from pooled donors, and a genotype file that contains allele dosage information on each of the donors. These two files need to consistently refer to the same allele at each SNP position.
+
+In this vignette we will explain how to obtain and filter the necessary input files for the deconvolution and reshape them in the correct format, and demonstrate the donor proportion deconvolution function itself.
 
 ```{r setup}
 library(poodleR)
-library(tidyverse)
+library(dplyr)
 ```
 ## Format of genotype VCF from donors
 The genotype VCF to use as reference needs to have the following format:
@@ -31,7 +33,7 @@ cbind(head(vcf@fix),head(vcf@gt)) # a few variants
 
 ```
 
-The metadata lines are not important, but the information for all donors must be present in this file. You can have only the variants that have different genotypes in at least one donor to maximize information while reducing file size.
+The metadata lines are not important, but the information for all donors must be present in this file. You can have only the variants that have different alleles in at least one donor to maximize information while reducing file size.
 
 ## Format of the variant count file from WGS
 The variant count file must be created with [bam-readcount](https://github.com/genome/bam-readcount), which looks like this:
@@ -39,80 +41,61 @@ The variant count file must be created with [bam-readcount](https://github.com/g
 load("bam_readcount.rda")
 head(bam_readcount)
 ```
+NOTE: INCLUDE HERE A BAM-READCOUNT FILE WITH UNEQUAL NUMBER OF COLUMNS IN EACH ROW.
+INCLUDE A VCF DESCRIPTION
+SECOND SET OF POSSIBLE FILES:
+INCLUDE A BCFTOOLS OUTPUT FILE DESCRIPTION
+AND INCLUDE AN ALLELE DOSAGE FILE DESCRIPTION
 
 ## Donor deconvolution from genotype VCF and variant count file
-Once you have the above files, first we need to load and process the VCF and the bam-readcount file to their common SNPs. The example VCF file has been preloaded but you can use vcfR to read your own. Same with the bam-readcount file.
-```{r read_vcf, eval=FALSE}
-library(vcfR)
-vcf_path <- system.file("extdata",  "vcf_example.vcf.gz", package = "poodleR")
-bam_readcount_path <- system.file("extdata",  "bam-readcount_example.tsv.gz", package = "poodleR")
+Once you have the above files, first we need to load and process the VCF and the bam-readcount file to their common SNPs, and do any read count filtering. The latter is useful to subset the positions that will be used for deconvolution to those that have more information (more reads = more confidence calculating the non-reference allele frequency that is used in the deconvolution step). There is a function to do all these steps:
+```{r calculate_nonRef_vector_and_genotype_df, eval=FALSE}
+bam_path=system.file("extdata", "bam-readcount_example.tsv.gz", package = "poodleR")
+v_path=system.file("extdata", "vcf_example.vcf.gz", package = "poodleR")
 
-if (file.exists(vcf_path) && file.exists(bam_readcount_path)) {
-vcf = vcfR::read.vcfR(vcf_path)
-bam_readcount= data.table::fread( cmd = paste("cat", bam_readcount_path,"| awk -F '\t' '{print $1 , $2 , $3 , $4, $5, $6, $7, $8, $9, $10}'"))
-} else {
-  stop("Example data files not found. Ensure they exist in inst/extdata.")
-}
-
-
-
+b_ma_list = calculate_nonRef_vector_and_genotype_df(bam_readcount_path =bam_path,
+                                                    vcf_path = v_path,
+                                                    min_read_overlap = 1,
+                                                    b_estimate_path = NULL,
+                                                    genotype_minor_allele_dos_path = NULL,
+                                                    variants_retained_path = NULL
+                                                    )
 
 ```
-The deconvolution step needs the estimated minor allele frequency (MAF) from the pool, which we'll calculate from the bam-readcount file. We'll also need the VCF file. Inside the `estimate_b_from_bam_readcount()` function both objects are reduced to their common SNPs. Also, for simplicity, only SNPs where the ALT allele is A, C, G or T are considered. If you have a big enough VCF and a WGS file sequenced at enough depth this shouldn't reduce the usable SNPs too much. 
-```{r process_files}
-
-message("...Calculating minor allele frequency estimate (b_estimate) from the pooled sample...")
-
-b_estimate_dt = poodle::estimate_b_from_bam_readcount(bam_readcount = bam_readcount, vcf = vcf)
-
-# Some sanity checks
-if(ncol(b_estimate_dt)!=8) stop("Error: The output file does not have the expected number of columns.\n")
-if(sum(is.na(b_estimate_dt$b_estimate)) == length(b_estimate_dt$b_estimate)) stop("Error: All the minor allele frequency estimates are NA.\n")
-
+This returns a list with two data.tables with the following format:
+```{r calculate_nonRef_vector_and_genotype_df_outputs, eval=FALSE}
+b_ma_list$b_estimate_table
+b_ma_list$ma_dosages
 ```
+The deconvolution step needs the non-reference allele frequency from the pool, which we have calculated from the bam-readcount file and is under the column "b_estimate". We'll also need the minor allele dosage file, containing the same variants *in the same order*. 
 
-The MAF estimate object (here b_estimate_dt) looks like this:
-```{r b_estimate, echo=FALSE}
-
-head(b_estimate_dt)
-```
+These are the full columns of the data.table containing the allele frequency:
 \n 
 
 * **total_reads** Total number of reads mapping to that SNP.
 * **A, C, T, G** Number of reads mapping to each of those bases.
-* **b_estimate** The estimated minor allele frequency in the sequenced population at that position.
-* **ALT** The alternative or minor allele.
-* **C_POS_REF** The ID created for that position, to match to the minor allele dosage genotype object.
+* **b_estimate** The estimated non-reference allele frequency in the sequenced population at that position.
+* **ALT** The alternative or non-reference allele.
+* **CHROM_POS_REF** The ID created for that position, to match to the minor allele dosage genotype object.
 
 \n 
 
-The deconvolution step also needs the genotype information in minor allele dosages. We can use `create_gt_dosages()` for that.
-```{r gt_dosages}
-message("...Calculating minor allele dosages...")
+The deconvolution step also needs the genotype information in minor allele dosages. These are the full columns of the data.table containing the minor allele dosage:
+\n 
 
-ma_dosages = poodle::create_gt_dosages(vcf)
+* **sample_name 1, 2, ..., n** Minor allele dosage for each sample. 
+* **rn** Row names, CHROM_POS_REF (should match the column from the allele frequency object exactly).
 
-# subset minor allele dosage object to the SNPs present now in the minor allele frequency estimate data table
-if(nrow(ma_dosages)<nrow(b_estimate_dt)){
-  b_estimate_dt = b_estimate_dt[b_estimate_dt$C_POS_REF %in% ma_dosages$rn,]
-}else{
-  ma_dosages = ma_dosages[ma_dosages$rn %in% b_estimate_dt$C_POS_REF,]
-  
-}
-
-# Do objects have the same number of rows, and are SNPs in the same order?
- if(!identical(ma_dosages$rn,b_estimate_dt$C_POS_REF)) stop("Genotype dosage file and MAF estimate file are not identical after filtering.\n")
-
-
-```
+\n 
 
 We can see how many SNPs we have lost after all these filters:
 
 ```{r maf}
 
 message("The proportion of SNPs retained from the input VCF was ", 
-        round((sum(table(b_estimate_dt$b_estimate)) / original_vcf_rows)*100,digits = 2), " % \n")
-
+        round((nrow(b_ma_list$b_estimate_table) / original_vcf_rows)*100,digits = 2), " % \n")
+message("There are  ", 
+        nrow(b_ma_list$b_estimate_table)," variants remaining \n")
 
 ```
 
@@ -120,7 +103,8 @@ We can finally estimate the donor proportions from the population (here we'll ca
 
 ```{r w}
 
-w_estimate = poodle::estimate_weights(b = b_estimate_dt$b_estimate,A = ma_dosages)
+w_estimate = poodle::estimate_weights(b = b_ma_list$b_estimate_table$b_estimate,
+                                      A = b_ma_list$ma_dosages)
 
 
 ```
