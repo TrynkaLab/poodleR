@@ -2,25 +2,59 @@
 % Please edit documentation in R/estimate_weights.R
 \name{estimate_weights}
 \alias{estimate_weights}
-\title{Estimate donor proportions (weights)}
+\title{Estimate Donor Proportions (Weights) from Minor Allele Frequencies and Genotype Data}
 \usage{
 estimate_weights(b, A = gt, force_zero = TRUE)
 }
 \arguments{
-\item{b}{a vector of minor allele frequencies with length k (k = number of donors)}
+\item{b}{A numeric vector of length \code{k} representing minor allele frequencies, where \code{k} is the number of donors.}
 
-\item{A}{a genotype file with k+1 columns. k named donor columns containing minor allele dosages (0 for homozygotes for major allele,
-1 for homozygotes of minor allele, 0.5 for heterozygotes).
-Plus one extra column with "rn" name, containing SNP names. Number of rows of A must equal the length of b.}
+\item{A}{A numeric matrix with \code{k+1} columns:
+\itemize{
+\item \code{k} named donor columns containing minor allele dosages (0 for homozygotes of the major allele,
+1 for homozygotes of the minor allele, 0.5 for heterozygotes).
+\item An additional column named \code{"rn"}, which contains SNP identifiers.
+The number of rows of \code{A} must be equal to the length of \code{b}.
+}}
 
-\item{force_zero}{a logical. The least square regression result can return negative values that are very close to zero. If TRUE,
-this parameter forces those values to zero. Defaults TRUE.}
+\item{force_zero}{A logical value indicating whether to force small negative values in \code{w} to zero.
+Negative values close to zero may arise due to numerical imprecision. Defaults to \code{TRUE}.}
 }
 \value{
-a vector of proportions (w) with length k, where the sum equals 1.
+A numeric vector of length \code{k} representing the estimated donor proportions (weights), where:
+\itemize{
+\item The sum of all weights equals 1.
+\item Each weight is constrained between 0 and 1.
+}
 }
 \description{
-Estimate donor proportions (weights) from the estimated MAF and the genotype
-Solve for w in Aw = b using least square regression
-With constraints sum(w) =1 and w can take values between 0-1.
+This function estimates donor proportions (weights) by solving the least squares regression problem \code{Aw = b},
+where \code{b} represents minor allele frequencies, and \code{A} is a genotype matrix containing donor minor allele dosages.
+}
+\details{
+The solution \code{w} represents the estimated donor proportions, subject to the constraints that the sum of weights equals 1 (\code{sum(w) = 1})
+and that all weights lie within the range \verb{[0,1]}.
+\itemize{
+\item The function checks that \code{length(b) == nrow(A)}, ensuring consistency between the frequency vector and genotype data.
+\item It removes SNPs where all genotypes are identical (zero variance), as these do not contribute information.
+\item SNPs with missing values (\code{NA}) in \code{b} are also removed.
+\item The function then solves for \code{w} using the \code{mod_lsqlincon} function, enforcing the constraints:
+\itemize{
+\item \code{sum(w) = 1}
+\item \verb{0 <= w <= 1}
+}
+\item If \code{force_zero = TRUE}, small negative values in \code{w} are set to zero.
+}
+}
+\examples{
+\dontrun{
+b <- c(0.1, 0.2, 0.3, 0.4)  # Example minor allele frequencies
+A <- data.frame(rn = c("SNP1", "SNP2", "SNP3", "SNP4"),
+                donor1 = c(0, 0.5, 1, 0.5),
+                donor2 = c(1, 0, 0.5, 0),
+                donor3 = c(0.5, 1, 0, 1))
+w <- estimate_weights(b, A)
+print(w)
+}
+
 }

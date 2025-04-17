@@ -2,18 +2,25 @@
 % Please edit documentation in R/estimate_weights.R
 \name{is_identical_genotype}
 \alias{is_identical_genotype}
-\title{Mark rows where all columns (donors) in a genotype file have identical value}
+\title{Check for Identical Genotypes Across Samples}
 \usage{
 is_identical_genotype(x, ...)
 }
 \arguments{
-\item{x}{Data table.}
+\item{x}{A numeric matrix where rows represent loci and columns represent individuals or samples.}
 
-\item{...}{Need to check what this is.}
+\item{...}{Additional arguments passed to \code{rowMeans()}.}
 }
 \value{
-Vector of row names where genotypes are identical
+A logical vector where each element is \code{TRUE} if all values in the corresponding row are identical, and \code{FALSE} otherwise.
 }
 \description{
-Checks per row if all columns have identical numeric value and marks those rows that are identical
+This function determines whether all genotypes in each row of a matrix are identical.
+It is a faster alternative to \code{apply(A[,..cols], MARGIN = 1, FUN = function(x) var(x) == 0)},
+leveraging row-wise variance calculations.
+}
+\examples{
+mat <- matrix(c(1,1,1, 2,2,2, 1,2,1), nrow = 3, byrow = TRUE)
+is_identical_genotype(mat)  # Returns: TRUE, TRUE, FALSE
+
 }

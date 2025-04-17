@@ -200,7 +200,7 @@ estimate_weights <- function(b, A=gt, force_zero = TRUE){
 
   to_remove =  is_identical_genotype(A[,..cols])
   message(paste0("We are removing ", sum(to_remove), " identical rows out of ", nrow(A),
-                 ": the ", floor((sum(to_remove)/nrow(A))*100), "%" ))
+                 ": ", floor((sum(to_remove)/nrow(A))*100), "% removed." ))
   A = A[!to_remove,]
 
   # remove same SNPs from b
@@ -209,7 +209,7 @@ estimate_weights <- function(b, A=gt, force_zero = TRUE){
   ###### Removing SNPs with NAs - not sampled (not "sequenced") in the tested coverage for this trial -------
   to_remove = is.na(b)
   message(paste0("We are removing ", sum(to_remove), " unsampled SNPs out of the remaining ", length(b),
-                 ": the ", signif(sum(to_remove)/length(b),digits = 2)*100, "%" ))
+                 ": ", signif(sum(to_remove)/length(b),digits = 2)*100, "% removed." ))
   b = b[!to_remove]
   A = A[!to_remove,]
   if ( length(b) != nrow(A))
