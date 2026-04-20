@@ -1,6 +1,6 @@
 # poodleR
 
-`poodleR` helps estimate donor proportions in pooled sequencing experiments using:
+`poodleR` helps estimate donor proportions in pooled sequencing experiments from:
 
 - donor genotypes stored in a VCF
 - pooled read counts exported by `bam-readcount`
@@ -134,6 +134,42 @@ sum(weights)
 ```
 
 The output is a named numeric vector constrained to sum to 1.
+
+### `is_identical_genotype()`
+
+Identify SNP rows that contain no variation across donors:
+
+```r
+data(A, package = "poodleR")
+
+donor_cols <- setdiff(colnames(A), "rn")
+identical_rows <- is_identical_genotype(as.matrix(A[, donor_cols, with = FALSE]))
+table(identical_rows)
+```
+
+This is mainly useful for understanding which rows will be dropped before regression.
+
+### `mod_lsqlincon()`
+
+Solve a constrained least-squares problem directly:
+
+```r
+C <- matrix(c(0, 1,
+              0.5, 0,
+              1, 0.5), ncol = 2, byrow = TRUE)
+d <- c(0.2, 0.5, 0.8)
+
+mod_lsqlincon(
+  C = C,
+  d = d,
+  Aeq = matrix(1, nrow = 1, ncol = 2),
+  beq = 1,
+  lb = 0,
+  ub = 1
+)
+```
+
+`estimate_weights()` wraps this solver with the constraints needed for donor deconvolution.
 
 ## Learn more
 

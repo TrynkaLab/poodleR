@@ -1,0 +1,28 @@
+* using log directory 'C:/Users/MartaPérezAlcántara/Documents/Sanger/poodleR/poodleR.Rcheck'
+* using R version 4.5.1 (2025-06-13 ucrt)
+* using platform: x86_64-w64-mingw32
+* R was compiled by
+    gcc.exe (GCC) 14.2.0
+    GNU Fortran (GCC) 14.2.0
+* running under: Windows 11 x64 (build 26200)
+* using session charset: UTF-8
+* using options '--no-manual --ignore-vignettes'
+* checking for file 'poodleR/DESCRIPTION' ... OK
+* this is package 'poodleR' version '0.0.0.9000'
+* package encoding: UTF-8
+* checking package namespace information ... OK
+* checking package dependencies ... ERROR
+Packages required but not available:
+  'corpcor', 'data.table', 'dplyr', 'quadprog', 'R.utils', 'stringr',
+  'vcfR'
+
+Packages suggested but not available: 'knitr', 'rmarkdown', 'testthat'
+
+The suggested packages are required for a complete check.
+Checking can be attempted without them by setting the environment
+variable _R_CHECK_FORCE_SUGGESTS_ to a false value.
+
+See section 'The DESCRIPTION file' in the 'Writing R Extensions'
+manual.
+* DONE
+Status: 1 ERROR

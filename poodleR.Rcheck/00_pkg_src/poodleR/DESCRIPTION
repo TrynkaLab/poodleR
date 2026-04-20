@@ -11,23 +11,15 @@ Description: Tools for estimating donor proportions in pooled sequencing
     frequencies from bam-readcount output, and solve the constrained regression
     problem used for pooled donor deconvolution.
 License: GPL-3
-Depends:
-    R (>= 4.1.0)
+Depends: R (>= 4.1.0)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
-Imports:
-    corpcor,
-    data.table,
-    dplyr,
-    Matrix,
-    quadprog,
-    R.utils,
-    stringr,
-    vcfR
-Suggests: 
-    knitr,
-    rmarkdown,
-    testthat (>= 3.0.0)
+Imports: corpcor, data.table, dplyr, Matrix, quadprog, R.utils,
+        stringr, vcfR
+Suggests: knitr, rmarkdown, testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
+NeedsCompilation: no
+Packaged: 2026-04-20 08:54:04 UTC; CodexSandboxOffline
+Author: Marta Perez-Alcantara [aut, cre]
