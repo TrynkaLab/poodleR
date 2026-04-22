@@ -23,8 +23,6 @@
 #' }
 #'
 #' @import data.table
-#' @importFrom dplyr across mutate
-#' @importFrom stringr str_replace_all
 #' @importFrom vcfR extract.gt read.vcfR
 #' @export
 
@@ -55,20 +53,21 @@ create_gt_dosages = function(vcf){
 
   ## converting GT to minor allele score
   donor_cols = setdiff(colnames(gt), "rn")
+  gt2 = data.table::copy(gt)
 
-  gt2 =  gt %>%
-    dplyr::mutate(dplyr::across(
-      donor_cols,
-      ~ .x %>%
-        stringr::str_replace_all("0\\|0", "0") %>%
-        stringr::str_replace_all("0\\/0", "0") %>%
-        stringr::str_replace_all("0\\|1", "0.5") %>%
-        stringr::str_replace_all("1\\|0", "0.5") %>%
-        stringr::str_replace_all("0\\/1", "0.5") %>%
-        stringr::str_replace_all("1\\/0", "0.5") %>%
-        stringr::str_replace_all("1\\|1", "1") %>%
-        stringr::str_replace_all("1\\/1", "1")
-    ))
+  convert_gt_to_dosage = function(x) {
+    x = gsub("0\\|0", "0", x)
+    x = gsub("0\\/0", "0", x)
+    x = gsub("0\\|1", "0.5", x)
+    x = gsub("1\\|0", "0.5", x)
+    x = gsub("0\\/1", "0.5", x)
+    x = gsub("1\\/0", "0.5", x)
+    x = gsub("1\\|1", "1", x)
+    x = gsub("1\\/1", "1", x)
+    x
+  }
+
+  gt2[, (donor_cols) := lapply(.SD, convert_gt_to_dosage), .SDcols = donor_cols]
 
 
   # change donor columns to numeric
@@ -310,7 +309,7 @@ calculate_nonRef_vector_and_genotype_df = function(bam_readcount_path,vcf_path,m
   # by bam-readcount to more accurately calculate the minor allele estimate
   # proportion of SNPs where total reads != sum of ACTG counts
   mismatch_fraction = 1 - sum(
-    count_dt$total_reads == rowSums(count_dt[, .(A, C, T, G)])
+    count_dt$total_reads == rowSums(count_dt[, list(A, C, T, G)])
   ) / nrow(count_dt)
   # less than 1%
   if(mismatch_fraction > 0.01) stop("The proportion of SNPs where total reads != sum of ACTG counts is over 1%. There might be an error in poodleR::estimate_b_from_bam_readcount(), or you may have a big fraction of non-ACTG allele counts. Investigate.\n")

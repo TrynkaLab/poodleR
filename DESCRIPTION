@@ -13,17 +13,16 @@ Description: Tools for estimating donor proportions in pooled sequencing
 License: GPL-3 + file LICENSE
 Depends:
     R (>= 4.1.0)
+LazyData: true
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Imports:
     corpcor,
     data.table,
-    dplyr,
     Matrix,
     quadprog,
     R.utils,
-    stringr,
     vcfR
 Suggests: 
     knitr,
