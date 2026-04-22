@@ -2,7 +2,7 @@ test_that("create_gt_dosages returns numeric donor dosages with rn ids", {
   skip_if_not_installed("vcfR")
   skip_if_not_installed("data.table")
 
-  load(test_path("../../data", "vcf.rda"))
+  data("vcf", package = "poodleR", envir = environment())
 
   dosage <- create_gt_dosages(vcf)
   donor_cols <- setdiff(colnames(dosage), "rn")

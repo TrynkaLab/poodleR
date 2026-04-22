@@ -18,15 +18,14 @@
 #'
 #' @examples
 #' \dontrun{
-#' library(vcfR)
-#' library(data.table)
-#' library(dplyr)
-#' library(stringr)
-#' vcf = read.vcfR("example.vcf")
+#' data(vcf, package = "poodleR")
 #' dosage_data = create_gt_dosages(vcf)
 #' }
 #'
-#' @import vcfR data.table dplyr stringr
+#' @import data.table
+#' @importFrom dplyr across mutate
+#' @importFrom stringr str_replace_all
+#' @importFrom vcfR extract.gt read.vcfR
 #' @export
 
 create_gt_dosages = function(vcf){
@@ -58,15 +57,18 @@ create_gt_dosages = function(vcf){
   donor_cols = setdiff(colnames(gt), "rn")
 
   gt2 =  gt %>%
-    dplyr::mutate(across(all_of(donor_cols), ~ . %>%
-                           str_replace_all("0\\|0", "0") %>%
-                           str_replace_all("0\\/0", "0") %>%
-                           str_replace_all("0\\|1", "0.5") %>%
-                           str_replace_all("1\\|0", "0.5") %>%
-                           str_replace_all("0\\/1", "0.5") %>%
-                           str_replace_all("1\\/0", "0.5") %>%
-                           str_replace_all("1\\|1", "1") %>%
-                           str_replace_all("1\\/1", "1")))
+    dplyr::mutate(dplyr::across(
+      donor_cols,
+      ~ .x %>%
+        stringr::str_replace_all("0\\|0", "0") %>%
+        stringr::str_replace_all("0\\/0", "0") %>%
+        stringr::str_replace_all("0\\|1", "0.5") %>%
+        stringr::str_replace_all("1\\|0", "0.5") %>%
+        stringr::str_replace_all("0\\/1", "0.5") %>%
+        stringr::str_replace_all("1\\/0", "0.5") %>%
+        stringr::str_replace_all("1\\|1", "1") %>%
+        stringr::str_replace_all("1\\/1", "1")
+    ))
 
 
   # change donor columns to numeric
@@ -180,7 +182,8 @@ estimate_b_from_bam_readcount = function(bam_readcount,vcf){
 #' result = calculate_nonRef_vector_and_genotype_df(bam_path, vcf_path, min_read_overlap = 10)
 #' }
 #'
-#' @import data.table vcfR
+#' @import data.table
+#' @importFrom utils globalVariables write.table
 #' @export
 calculate_nonRef_vector_and_genotype_df = function(bam_readcount_path,vcf_path,min_read_overlap = 1,
                                                    b_estimate_path = NULL, variants_retained_path = NULL,
@@ -338,3 +341,8 @@ calculate_nonRef_vector_and_genotype_df = function(bam_readcount_path,vcf_path,m
   return(list("b_estimate_table" = count_dt, "ma_dosages" = ma_dosages))
 
 }
+
+utils::globalVariables(c(
+  "..base", "..cols", "..donor_cols",
+  "A", "ALT", "C", "G", "TOTAL_READS", "rn"
+))

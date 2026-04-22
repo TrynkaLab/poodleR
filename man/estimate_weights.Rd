@@ -45,12 +45,11 @@ and that all weights lie within the range \verb{[0,1]}.
 }
 \examples{
 \dontrun{
-b <- c(0.2, 0.5, 0.8)
-A <- data.frame(
-  donor1 = c(0, 0.5, 1),
-  donor2 = c(1, 0.5, 0),
-  rn = c("SNP1", "SNP2", "SNP3")
-)
+b <- c(0.1, 0.2, 0.3, 0.4)  # Example minor allele frequencies
+A <- data.frame(rn = c("SNP1", "SNP2", "SNP3", "SNP4"),
+                donor1 = c(0, 0.5, 1, 0.5),
+                donor2 = c(1, 0, 0.5, 0),
+                donor3 = c(0.5, 1, 0, 1))
 w <- estimate_weights(b, A)
 print(w)
 }

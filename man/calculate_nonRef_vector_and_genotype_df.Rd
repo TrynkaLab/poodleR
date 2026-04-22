@@ -50,13 +50,9 @@ This function processes bam-readcount data and VCF files to estimate non-referen
 }
 \examples{
 \dontrun{
-bam_path <- system.file("extdata", "bam-readcount_example.tsv.gz", package = "poodleR")
-vcf_path <- system.file("extdata", "vcf_example.vcf.gz", package = "poodleR")
-result <- calculate_nonRef_vector_and_genotype_df(
-  bam_path,
-  vcf_path,
-  min_read_overlap = 5
-)
+bam_path = "path/to/bam_readcount.gz"
+vcf_path = "path/to/variants.vcf"
+result = calculate_nonRef_vector_and_genotype_df(bam_path, vcf_path, min_read_overlap = 10)
 }
 
 }

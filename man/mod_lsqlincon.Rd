@@ -55,20 +55,11 @@ to ensure stability.
 }
 \examples{
 \dontrun{
-C <- matrix(c(
-  0, 1,
-  0.5, 0,
-  1, 0.5
-), byrow = TRUE, ncol = 2)
-d <- c(0.2, 0.5, 0.8)
-result <- mod_lsqlincon(
-  C,
-  d,
-  Aeq = matrix(1, nrow = 1, ncol = 2),
-  beq = 1,
-  lb = 0,
-  ub = 1
-)
+C <- matrix(c(1, 2, 3, 4), nrow = 2)
+d <- c(5, 6)
+A <- matrix(c(1, 1, -1, 0), nrow = 2)
+b <- c(1, -2)
+result <- mod_lsqlincon(C, d, A, b)
 }
 
 }

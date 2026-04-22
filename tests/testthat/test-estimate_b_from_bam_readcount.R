@@ -2,8 +2,8 @@ test_that("estimate_b_from_bam_readcount returns the expected aligned columns", 
   skip_if_not_installed("vcfR")
   skip_if_not_installed("data.table")
 
-  load(test_path("../../data", "bam_readcount.rda"))
-  load(test_path("../../data", "vcf.rda"))
+  data("bam_readcount", package = "poodleR", envir = environment())
+  data("vcf", package = "poodleR", envir = environment())
 
   colnames(bam_readcount) <- c("CHROM", "POS", "REF", "TOTAL_READS", "DEL", "A", "C", "G", "T", "N")
   bam_readcount$CHROM_POS_REF <- paste(bam_readcount$CHROM, bam_readcount$POS, bam_readcount$REF, sep = "_")

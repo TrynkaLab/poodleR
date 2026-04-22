@@ -30,7 +30,7 @@ so far minor alleles which are A,C,T or G (TODO: consider changing this)}
 \itemize{
 \item A data.table containing per SNP position: the total counts,
 counts for the A,C,T and G alleles, the minor allele frequency estimate (b_estimate), the ALT allele,
-and the SNP name in chromosome_position_REF (CHROM_POS_REF) format.
+and the SNP name in chromosome_position_REF_ALT (CHROM_POS_REF) format.
 }
 }
 \description{
