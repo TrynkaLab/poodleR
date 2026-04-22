@@ -13,15 +13,31 @@ The package covers the full workflow:
 4. Estimate donor weights with `estimate_weights()`.
 5. Use `is_identical_genotype()` and `mod_lsqlincon()` as lower-level utilities.
 
-## Installation
+## Install from GitHub
 
-Install from a local checkout with:
 
 ```r
-install.packages(".", repos = NULL, type = "source")
+install.packages("remotes")
+
+remotes::install_github(
+  "TrynkaLab/poodleR",
+  dependencies = TRUE,
+  build_vignettes = TRUE
+)
 ```
 
-Package dependencies are declared in `DESCRIPTION`. On Windows, make sure Rtools is available before building from source.
+## Publishing checklist
+
+Before announcing the package publicly:
+
+1. Install the package dependencies locally.
+2. Run `devtools::check()` or `R CMD check`.
+3. Confirm the vignette builds and the example workflow runs.
+4. Push the repository to a public GitHub repo named `poodleR`.
+5. Update the `USERNAME/poodleR` placeholders in this README.
+6. Create a release tag such as `v0.1.0`.
+
+This repository now includes a GitHub Actions workflow at `.github/workflows/R-CMD-check.yaml` so every push and pull request can run package checks automatically.
 
 ## Example files shipped with the package
 
