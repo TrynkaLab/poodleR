@@ -26,19 +26,6 @@ remotes::install_github(
 )
 ```
 
-## Publishing checklist
-
-Before announcing the package publicly:
-
-1. Install the package dependencies locally.
-2. Run `devtools::check()` or `R CMD check`.
-3. Confirm the vignette builds and the example workflow runs.
-4. Push the repository to a public GitHub repo named `poodleR`.
-5. Update the `USERNAME/poodleR` placeholders in this README.
-6. Create a release tag such as `v0.1.0`.
-
-This repository now includes a GitHub Actions workflow at `.github/workflows/R-CMD-check.yaml` so every push and pull request can run package checks automatically.
-
 ## Example files shipped with the package
 
 The repository includes compressed example inputs in `inst/extdata`:
