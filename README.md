@@ -15,7 +15,9 @@ The package covers the full workflow:
 
 ## Install from GitHub
 
-This package can be installed in any computer running R (was testes with R v. 4.4.1).
+This package can be installed in any computer running R (was tested with R v. 4.4.1 and Ubuntu 16.04, and MacOS Sequoia 15.7.7), and requires only enough RAM to support the in-memory operations. Package dependencies are detailed and handled in the DESCRIPTION file.
+
+To install, simply run:
 ```r
 install.packages("remotes")
 
