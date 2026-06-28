@@ -15,7 +15,7 @@ The package covers the full workflow:
 
 ## Install from GitHub
 
-
+This package can be installed in any computer running R (was testes with R v. 4.4.1).
 ```r
 install.packages("remotes")
 
