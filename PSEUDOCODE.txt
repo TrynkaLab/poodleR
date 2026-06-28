@@ -1,0 +1,274 @@
+poodleR function pseudocode
+===========================
+
+This file describes the exported functions in the order presented in the
+README workflow.
+
+
+1. create_gt_dosages(vcf)
+-------------------------
+
+Purpose:
+Convert donor genotypes from a vcfR object into a SNP-by-donor minor-allele
+dosage table.
+
+Pseudocode:
+
+START create_gt_dosages
+
+1. Extract the genotype (GT) matrix from the VCF object.
+2. Convert the genotype matrix to a data.table.
+3. Build one variant identifier per row using CHROM, POS, and REF:
+   CHROM_POS_REF.
+4. Find duplicated variant identifiers.
+5. Remove duplicated rows from the genotype table.
+6. Remove the matching duplicated identifiers from the identifier vector.
+7. Add the cleaned variant identifiers to the genotype table as column rn.
+8. Identify donor/sample columns as all columns except rn.
+9. Make a copy of the genotype table for conversion.
+10. For every donor/sample column:
+    a. Replace homozygous reference genotypes 0|0 and 0/0 with 0.
+    b. Replace heterozygous genotypes 0|1, 1|0, 0/1, and 1/0 with 0.5.
+    c. Replace homozygous alternate genotypes 1|1 and 1/1 with 1.
+11. Convert all donor/sample columns from text to numeric values.
+12. Remove SNP rows where any donor/sample dosage is missing.
+13. Return the cleaned dosage table.
+
+END create_gt_dosages
+
+
+2. estimate_b_from_bam_readcount(bam_readcount, vcf)
+----------------------------------------------------
+
+Purpose:
+Convert preprocessed bam-readcount rows into pooled alternate-allele frequency
+estimates aligned to VCF ALT alleles.
+
+Pseudocode:
+
+START estimate_b_from_bam_readcount
+
+1. Define required bam_readcount columns:
+   TOTAL_READS, A, C, G, T, and CHROM_POS_REF.
+2. Check whether bam_readcount contains all required columns.
+3. If any required columns are missing, stop with an error listing them.
+4. Check whether the VCF table contains an ALT column.
+5. If ALT is missing, stop with an error.
+6. Create an output count table with one row per bam_readcount row and columns:
+   total_reads, A, C, T, G, b_estimate.
+7. Initialize allele count columns and total_reads to 0.
+8. Initialize b_estimate to missing values.
+9. For each base column A, C, T, and G:
+   a. Extract the first two colon-delimited fields from each bam-readcount
+      base string.
+   b. Extract the numeric count after the final colon.
+   c. Store that numeric count in the matching base column of the output table.
+10. Copy TOTAL_READS from bam_readcount into total_reads.
+11. Copy ALT alleles from the VCF table into the output table.
+12. For each possible ALT base A, C, G, and T:
+    a. Select rows where ALT equals that base.
+    b. Divide that base count by total_reads.
+    c. Store the result as b_estimate for those rows.
+13. Copy CHROM_POS_REF from bam_readcount into the output table.
+14. Return the output count table.
+
+END estimate_b_from_bam_readcount
+
+
+3. calculate_nonRef_vector_and_genotype_df(
+     bam_readcount_path,
+     vcf_path,
+     min_read_overlap = 1,
+     b_estimate_path = NULL,
+     variants_retained_path = NULL,
+     genotype_minor_allele_dos_path = NULL
+   )
+----------------------------------------------------------------------
+
+Purpose:
+Run the full preprocessing pipeline from compressed bam-readcount and VCF files,
+producing aligned pooled allele-frequency estimates and donor genotype dosages.
+
+Pseudocode:
+
+START calculate_nonRef_vector_and_genotype_df
+
+1. Detect the operating system.
+2. Read the first 10 columns of the compressed bam-readcount file:
+   a. On Linux, use zcat and awk through data.table::fread.
+   b. On macOS, use gzcat and awk through data.table::fread.
+   c. On Windows, decompress to a temporary TSV and read columns 1 through 10.
+   d. On any other operating system, stop with an unsupported OS error.
+3. Assign bam-readcount column names:
+   CHROM, POS, REF, TOTAL_READS, DEL, A, C, G, T, N.
+4. Convert bam-readcount REF alleles to uppercase.
+5. Read the VCF file.
+6. Create a reduced VCF table from the fixed VCF fields CHROM through ALT.
+7. Add CHROM_POS_REF identifiers to the reduced VCF table.
+8. Keep only VCF rows where ALT is one of A, C, T, or G.
+9. Report the initial number of bam-readcount rows and read-depth summary.
+10. Filter bam-readcount rows to TOTAL_READS >= min_read_overlap.
+11. Add CHROM_POS_REF identifiers to the filtered bam-readcount table.
+12. Remove duplicated CHROM_POS_REF rows from bam_readcount.
+13. Remove duplicated CHROM_POS_REF rows from the reduced VCF table.
+14. Subset both tables to their shared CHROM_POS_REF identifiers.
+15. Store the number of overlapping VCF rows as original_vcf_rows.
+16. Check that bam_readcount and the reduced VCF table now have identical
+    CHROM_POS_REF order.
+17. If they match, copy VCF ALT alleles into bam_readcount.
+18. If they do not match, stop with an alignment error.
+19. Check whether any uppercase bam-readcount REF allele equals the VCF ALT.
+20. If any REF allele equals ALT, stop and ask the user to investigate.
+21. Create donor minor-allele dosages by calling create_gt_dosages(vcf).
+22. Align the dosage table and reduced VCF table to the same retained variants.
+23. Check that reduced VCF identifiers and bam_readcount identifiers are
+    identical and in the same order.
+24. Check that dosage table identifiers and bam_readcount identifiers are
+    identical and in the same order.
+25. Estimate pooled allele frequencies by calling
+    estimate_b_from_bam_readcount(bam_readcount, reduced_vcf).
+26. Report the retained proportion of rows with b_estimate values.
+27. Check that the count table has the expected 8 columns.
+28. Check that not all b_estimate values are missing.
+29. Calculate the fraction of SNPs where total_reads differs from A + C + T + G.
+30. If that fraction is greater than 1%, stop with a count consistency error.
+31. If b_estimate_path was supplied, write the count table to that path.
+32. Re-align ma_dosages to the retained VCF identifiers.
+33. Check once more that ma_dosages and bam_readcount have identical identifiers.
+34. If variants_retained_path was supplied, write original and final variant
+    counts to that path.
+35. If genotype_minor_allele_dos_path was supplied, write ma_dosages to that
+    path.
+36. Return a list containing:
+    a. b_estimate_table = the pooled allele-frequency table.
+    b. ma_dosages = the aligned donor dosage table.
+
+END calculate_nonRef_vector_and_genotype_df
+
+
+4. estimate_weights(b, A, force_zero = TRUE)
+--------------------------------------------
+
+Purpose:
+Estimate donor proportions from aligned pooled allele frequencies and donor
+minor-allele dosages under simplex constraints.
+
+Pseudocode:
+
+START estimate_weights
+
+1. Check whether A was supplied.
+2. If A is missing, stop with an error.
+3. Check whether length(b) equals nrow(A).
+4. If the dimensions do not match, stop with an error.
+5. Identify donor columns as all columns in A except rn.
+6. If no donor columns exist, stop with an error.
+7. Convert A to a data.table.
+8. Call is_identical_genotype on the donor columns to find SNP rows where all
+   donor dosages are identical.
+9. Report how many identical rows will be removed.
+10. Remove identical genotype rows from A.
+11. Remove the same positions from b.
+12. Find rows where b is missing.
+13. Report how many unsampled SNPs will be removed.
+14. Remove missing-b rows from b.
+15. Remove the same rows from A.
+16. Check again that length(b) equals nrow(A).
+17. If the dimensions do not match, stop with an error.
+18. Solve for donor weights by calling mod_lsqlincon with:
+    a. C = the donor dosage matrix.
+    b. d = the pooled allele-frequency vector b.
+    c. Aeq = a one-row matrix of ones, forcing weights to sum to 1.
+    d. beq = 1.
+    e. lb = 0, forcing weights to be at least 0.
+    f. ub = 1, forcing weights to be at most 1.
+19. If force_zero is TRUE, set any negative returned weights to 0.
+20. Name the returned weights with the donor column names.
+21. Return the named weight vector.
+
+END estimate_weights
+
+
+5. is_identical_genotype(x, ...)
+--------------------------------
+
+Purpose:
+Identify rows in a numeric genotype matrix where all donor/sample values are
+identical.
+
+Pseudocode:
+
+START is_identical_genotype
+
+1. For each row in x, compute the row mean.
+2. Subtract the row mean from each value in that row.
+3. Square each centered value.
+4. Sum the squared centered values across each row.
+5. Divide each row sum by the number of columns minus 1 to get row variance.
+6. Compare each row variance to 0.
+7. Return TRUE for rows with variance 0 and FALSE for all other rows.
+
+END is_identical_genotype
+
+
+6. mod_lsqlincon(C, d, A = NULL, b = NULL, Aeq = NULL, beq = NULL,
+                 lb = NULL, ub = NULL)
+---------------------------------------------------------------
+
+Purpose:
+Solve a constrained least-squares problem, with a fallback for non-positive
+definite quadratic-programming matrices.
+
+Pseudocode:
+
+START mod_lsqlincon
+
+1. Check that the quadprog package is installed.
+2. If quadprog is unavailable, stop with an error.
+3. Check that C and d are numeric.
+4. Check that A and b are either both supplied or both NULL.
+5. Check that Aeq and beq are either both supplied or both NULL.
+6. If C is not a matrix, convert C to a one-row matrix.
+7. Store the number of rows and columns in C.
+8. Set the number of variables n to the number of C columns.
+9. Check that length(d) equals the number of C rows.
+10. If there are no inequality constraints, equality constraints, lower bounds,
+    or upper bounds, solve the ordinary least-squares problem with qr.solve and
+    return the result.
+11. If inequality constraints A and b were supplied:
+    a. Convert A to a one-row matrix if needed.
+    b. Check that A has n columns.
+    c. Multiply A and b by -1 because quadprog represents constraints in the
+       opposite direction.
+12. If equality constraints were not supplied, set the number of equality
+    constraints to 0.
+13. If equality constraints were supplied:
+    a. Convert Aeq to a one-row matrix if needed.
+    b. Count equality constraint rows.
+    c. Check that Aeq has n columns.
+14. If no lower bound was supplied, skip lower-bound constraints.
+15. If a lower bound was supplied:
+    a. If it is a single value, repeat it for all n variables.
+    b. Otherwise, check that it has length n.
+    c. Create an identity-matrix constraint for the lower bounds.
+16. If no upper bound was supplied, skip upper-bound constraints.
+17. If an upper bound was supplied:
+    a. If it is a single value, repeat it for all n variables.
+    b. Otherwise, check that it has length n.
+    c. Create a negative identity-matrix constraint for the upper bounds.
+    d. Multiply the upper-bound vector by -1 for quadprog's constraint form.
+18. Compute Dmat as transpose(C) times C.
+19. Check whether Dmat is positive definite.
+20. If Dmat is not positive definite:
+    a. Report that Dmat is not positive definite.
+    b. Replace Dmat with the nearest positive-definite approximation.
+21. Compute dvec as transpose(C) times d.
+22. Combine equality constraints, inequality constraints, lower-bound
+    constraints, and upper-bound constraints into Amat.
+23. Combine beq, b, lb, and ub into bvec.
+24. Call quadprog::solve.QP with Dmat, dvec, transpose(Amat), bvec, and the
+    equality-constraint count.
+25. Return the solution vector from solve.QP.
+
+END mod_lsqlincon
+
