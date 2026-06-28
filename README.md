@@ -147,3 +147,6 @@ For a longer worked example, see the vignette:
 ```r
 vignette("how_to_use_poodleR", package = "poodleR")
 ```
+
+## See also
+The code to reproduce the results in "Integrated QTL mapping and CRISPR screening in pooled iPSC-derived microglia reveals genetic drivers of neurodegenerative risk" (https://www.biorxiv.org/content/10.1101/2025.08.18.670767v1) can be found in https://github.com/TrynkaLab/Perez_Alcantara_pooled_iMGL
